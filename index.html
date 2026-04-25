@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Padel-Runde</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #efefec;
+    --text: #1a1a18;
+    --text2: #6b6b67;
+    --text3: #9e9e99;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius: 8px;
+    --radius-lg: 12px;
+    --blue: #185FA5;
+    --blue-dark: #0C447C;
+    --blue-light: #E6F1FB;
+    --blue-text: #0C447C;
+    --green-light: #EAF3DE;
+    --green-text: #27500A;
+    --purple-light: #EEEDFE;
+    --purple-text: #3C3489;
+    --amber-light: #FAEEDA;
+    --amber-text: #633806;
+    --red-light: #FCEBEB;
+    --red-text: #A32D2D;
+    --red-border: #F7C1C1;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c;
+      --bg2: #2a2a28;
+      --bg3: #333330;
+      --text: #f0f0ec;
+      --text2: #a0a09a;
+      --text3: #6e6e68;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+      --blue-light: #0C447C;
+      --blue-text: #B5D4F4;
+      --green-light: #173404;
+      --green-text: #C0DD97;
+      --purple-light: #3C3489;
+      --purple-text: #CECBF6;
+      --amber-light: #633806;
+      --amber-text: #FAC775;
+      --red-light: #501313;
+      --red-text: #F09595;
+      --red-border: #791F1F;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .container { max-width: 560px; margin: 0 auto; }
+
+  .header { display: flex; align-items: center; gap: 12px; margin-bottom: 1.75rem; }
+  .header-icon { font-size: 28px; line-height: 1; }
+  .header h1 { font-size: 20px; font-weight: 600; color: var(--text); }
+  .header p { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+  .section-title {
+    font-size: 11px; font-weight: 600; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px;
+  }
+
+  .form-box {
+    background: var(--bg2); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1.75rem;
+  }
+
+  .field { margin-bottom: 10px; }
+  .field label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 5px; }
+
+  input, select {
+    width: 100%; font-size: 13px; padding: 8px 10px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius);
+    background: var(--bg); color: var(--text); outline: none;
+    appearance: auto;
+  }
+  input:focus, select:focus { box-shadow: 0 0 0 2px rgba(24,95,165,0.3); }
+
+  .dur-row { display: flex; gap: 8px; align-items: center; }
+  .dur {
+    font-size: 13px; padding: 7px 20px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius);
+    cursor: pointer; background: var(--bg); color: var(--text); white-space: nowrap;
+  }
+  .dur:hover { background: var(--bg2); }
+  .dur.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .end-hint { font-size: 13px; color: var(--text2); }
+  .end-hint b { color: var(--text); font-weight: 500; }
+
+  .btn-submit {
+    font-size: 13px; padding: 8px 18px; margin-top: 4px;
+    border: none; border-radius: var(--radius);
+    cursor: pointer; background: var(--blue); color: #fff; font-weight: 500;
+  }
+  .btn-submit:hover { background: var(--blue-dark); }
+  .btn-submit:disabled { opacity: 0.5; cursor: default; }
+
+  .card {
+    background: var(--bg); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 10px;
+  }
+  .card.done { opacity: 0.75; }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .card-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .card-sub { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+  .badge-open { background: var(--blue-light); color: var(--blue-text); }
+  .badge-full { background: var(--green-light); color: var(--green-text); }
+
+  .loc { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+  .loc-p { background: var(--purple-light); color: var(--purple-text); }
+  .loc-t { background: var(--amber-light); color: var(--amber-text); }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
+  .pill {
+    font-size: 12px; padding: 3px 10px; border-radius: 20px;
+    background: var(--bg2); border: 0.5px solid var(--border);
+    color: var(--text); display: inline-flex; align-items: center; gap: 5px;
+  }
+  .pill button { background: none; border: none; cursor: pointer; color: var(--text2); font-size: 14px; line-height: 1; padding: 0; }
+  .dot { font-size: 11px; color: var(--border2); }
+
+  .full-banner {
+    font-size: 13px; color: var(--green-text); background: var(--green-light);
+    border-radius: var(--radius); padding: 7px 12px; margin-top: 10px;
+  }
+
+  .join-row { display: flex; gap: 8px; margin-top: 10px; }
+  .join-row input { flex: 1; padding: 6px 10px; }
+  .btn-join {
+    font-size: 13px; padding: 6px 14px; border: none; border-radius: var(--radius);
+    cursor: pointer; background: var(--blue); color: #fff; white-space: nowrap; font-weight: 500;
+  }
+  .btn-join:hover { background: var(--blue-dark); }
+
+  .btn-del {
+    font-size: 11px; padding: 3px 8px;
+    border: 0.5px solid var(--red-border); border-radius: var(--radius);
+    cursor: pointer; background: transparent; color: var(--red-text);
+  }
+  .btn-del:hover { background: var(--red-light); }
+
+  .empty { font-size: 14px; color: var(--text3); padding: 1rem 0; }
+  .loading { text-align: center; padding: 2rem; color: var(--text2); font-size: 14px; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1a1a18; color: #fff; padding: 9px 20px;
+    border-radius: 20px; font-size: 13px;
+    opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 99;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-icon">🎾</div>
+    <div>
+      <h1>Padel-Runde</h1>
+      <p>Termin vorschlagen – wenn 4 Leute zusagen, spielen wir!</p>
+    </div>
+  </div>
+
+  <p class="section-title">Neuen Termin vorschlagen</p>
+  <div class="form-box">
+    <div class="field">
+      <label>Dein Name</label>
+      <input type="text" id="inp-name" placeholder="z.B. Max" />
+    </div>
+    <div class="field">
+      <label>Ort</label>
+      <select id="inp-place">
+        <option value="">Ort wählen …</option>
+        <option value="Padelhaus GmbH">Padelhaus GmbH</option>
+        <option value="TIO TIO Rooftop">TIO TIO Rooftop</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Datum</label>
+      <input type="date" id="inp-date" />
+    </div>
+    <div class="field">
+      <label>Startzeit</label>
+      <select id="inp-start" onchange="upd()"></select>
+    </div>
+    <div class="field">
+      <label>Dauer</label>
+      <div class="dur-row">
+        <button class="dur" data-d="60" onclick="setDur(this)">1h</button>
+        <button class="dur" data-d="90" onclick="setDur(this)">1,5h</button>
+        <span class="end-hint" id="end-hint" style="display:none;">→ <b id="end-val"></b></span>
+      </div>
+    </div>
+    <button class="btn-submit" id="btn-add" onclick="addSlot()">Termin vorschlagen</button>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+    <p class="section-title" style="margin-bottom:0;">Offene Termine</p>
+    <span id="last-update" style="font-size:11px;color:var(--text3);"></span>
+  </div>
+  <div id="slots"><div class="loading">Lade Termine …</div></div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const BIN_ID  = '69ecfe97856a68218970bce3';
+const API_KEY = '$2a$10$ajy7b9.qp0.O..FUreJsFO1JnJ2irOrMrR1/cxJiyHvicc1XmeXE6';
+const BASE    = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
+const RH      = { 'X-Master-Key': API_KEY };
+const WH      = { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY };
+
+const TIMES = [];
+for (let h = 7; h <= 22; h++) {
+  TIMES.push(String(h).padStart(2,'0') + ':00');
+  if (h < 22) TIMES.push(String(h).padStart(2,'0') + ':30');
+}
+let dur = null;
+
+(function bootForm() {
+  const s = document.getElementById('inp-start');
+  s.innerHTML = '<option value="">– Uhr</option>' +
+    TIMES.map(t => `<option value="${t}">${t} Uhr</option>`).join('');
+  s.value = '18:00';
+})();
+
+function setDur(btn) {
+  document.querySelectorAll('.dur').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  dur = +btn.dataset.d;
+  upd();
+}
+
+function addM(t, m) {
+  const [h, mm] = t.split(':').map(Number);
+  const tot = h * 60 + mm + m;
+  return String(Math.floor(tot/60)).padStart(2,'0') + ':' + String(tot%60).padStart(2,'0');
+}
+
+function upd() {
+  const v = document.getElementById('inp-start').value;
+  const hint = document.getElementById('end-hint');
+  if (v && dur) {
+    document.getElementById('end-val').textContent = addM(v, dur) + ' Uhr';
+    hint.style.display = 'inline';
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+async function fetchSlots() {
+  try {
+    const r = await fetch(BASE + '/latest', { headers: RH });
+    const data = await r.json();
+    render(Array.isArray(data.record) ? data.record : []);
+    const lu = document.getElementById('last-update');
+    if (lu) lu.textContent = 'Aktualisiert ' + new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    document.getElementById('slots').innerHTML =
+      '<p class="empty">Fehler beim Laden – bitte Seite neu laden.</p>';
+  }
+}
+
+async function saveSlots(slots) {
+  await fetch(BASE, { method: 'PUT', headers: WH, body: JSON.stringify(slots) });
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  return new Date(s + 'T12:00:00').toLocaleDateString('de-DE',
+    { weekday: 'short', day: '2-digit', month: '2-digit' });
+}
+
+function locCls(p) { return p === 'Padelhaus GmbH' ? 'loc-p' : 'loc-t'; }
+
+async function addSlot() {
+  const name  = document.getElementById('inp-name').value.trim();
+  const place = document.getElementById('inp-place').value;
+  const date  = document.getElementById('inp-date').value;
+  const start = document.getElementById('inp-start').value;
+  if (!name || !place || !date || !start || !dur) {
+    toast('Bitte alle Felder ausfüllen'); return;
+  }
+  const btn = document.getElementById('btn-add');
+  btn.disabled = true; btn.textContent = 'Wird gespeichert …';
+  try {
+    const r = await fetch(BASE + '/latest', { headers: RH });
+    const data = await r.json();
+    const slots = Array.isArray(data.record) ? data.record : [];
+    slots.unshift({ id: Date.now(), place, date, start, dur, by: name, players: [name], done: false });
+    await saveSlots(slots);
+    document.getElementById('inp-name').value  = '';
+    document.getElementById('inp-place').value = '';
+    document.getElementById('inp-date').value  = '';
+    document.getElementById('inp-start').value = '18:00';
+    document.querySelectorAll('.dur').forEach(b => b.classList.remove('on'));
+    dur = null; upd();
+    toast('Termin vorgeschlagen!');
+    render(slots);
+  } catch(e) { toast('Fehler beim Speichern'); }
+  btn.disabled = false; btn.textContent = 'Termin vorschlagen';
+}
+
+async function join(id) {
+  const inp  = document.getElementById('j' + id);
+  const name = inp.value.trim();
+  if (!name) { toast('Bitte Namen eingeben'); return; }
+  inp.disabled = true;
+  try {
+    const r = await fetch(BASE + '/latest', { headers: RH });
+    const data = await r.json();
+    const slots = Array.isArray(data.record) ? data.record : [];
+    const s = slots.find(x => x.id === id);
+    if (!s) return;
+    if (s.players.includes(name)) { toast('Schon dabei!'); inp.disabled = false; return; }
+    if (s.players.length >= 4)    { toast('Runde voll!');  inp.disabled = false; return; }
+    s.players.push(name);
+    if (s.players.length === 4) s.done = true;
+    await saveSlots(slots);
+    toast(s.done ? '🎉 Runde komplett!' : 'Zugesagt!');
+    render(slots);
+  } catch(e) { toast('Fehler'); inp.disabled = false; }
+}
+
+async function leave(id, name) {
+  try {
+    const r = await fetch(BASE + '/latest', { headers: RH });
+    const data = await r.json();
+    const slots = Array.isArray(data.record) ? data.record : [];
+    const s = slots.find(x => x.id === id);
+    if (!s) return;
+    s.players = s.players.filter(p => p !== name);
+    s.done = false;
+    await saveSlots(slots);
+    toast('Abgesagt');
+    render(slots);
+  } catch(e) { toast('Fehler'); }
+}
+
+async function del(id) {
+  if (!confirm('Termin wirklich löschen?')) return;
+  try {
+    const r = await fetch(BASE + '/latest', { headers: RH });
+    const data = await r.json();
+    const slots = (Array.isArray(data.record) ? data.record : []).filter(x => x.id !== id);
+    await saveSlots(slots);
+    toast('Termin gelöscht');
+    render(slots);
+  } catch(e) { toast('Fehler'); }
+}
+
+function render(slots) {
+  const c = document.getElementById('slots');
+  if (!slots.length) {
+    c.innerHTML = '<p class="empty">Noch keine Termine – schlage den ersten vor!</p>'; return;
+  }
+  const sorted = [...slots].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return (a.date + a.start).localeCompare(b.date + b.start);
+  });
+  c.innerHTML = sorted.map(s => {
+    const end = addM(s.start, s.dur);
+    const dl  = s.dur === 60 ? '1h' : '1,5h';
+    const n = s.players.length, full = n >= 4, spots = 4 - n;
+    const badge = full
+      ? '<span class="badge badge-full">✓ Komplett</span>'
+      : `<span class="badge badge-open">${spots} Platz${spots===1?'':'\'e'} frei</span>`;
+    const pills = s.players.map(p =>
+      `<span class="pill">${p}<button onclick="leave(${s.id},'${p.replace(/'/g,"\\'")}')">×</button></span>`
+    ).join('');
+    const dots   = Array(Math.max(0, 4-n)).fill('<span class="dot">●</span>').join('');
+    const banner = full ? `<div class="full-banner">🎉 Alle 4 dabei: ${s.players.join(', ')}</div>` : '';
+    const joinRow = !full
+      ? `<div class="join-row"><input id="j${s.id}" type="text" placeholder="Dein Name" /><button class="btn-join" onclick="join(${s.id})">Zusagen</button></div>`
+      : '';
+    return `<div class="card${full?' done':''}">
+      <div class="card-top">
+        <div>
+          <div class="card-title">${fmtDate(s.date)} · ${s.start}–${end} Uhr <span style="font-size:12px;font-weight:400;color:var(--text2);">(${dl})</span></div>
+          <div class="card-sub"><span class="loc ${locCls(s.place)}">${s.place}</span><span>von ${s.by}</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          ${badge}
+          <button class="btn-del" onclick="del(${s.id})">löschen</button>
+        </div>
+      </div>
+      <div class="pills">${pills}${dots}</div>
+      ${banner}${joinRow}
+    </div>`;
+  }).join('');
+}
+
+fetchSlots();
+setInterval(fetchSlots, 15000);
+</script>
+</body>
+</html>
