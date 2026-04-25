@@ -189,11 +189,14 @@
     </div>
     <div class="field">
       <label>Ort</label>
-      <select id="inp-place">
+      <select id="inp-place" onchange="updPlace()">
         <option value="">Ort wählen …</option>
         <option value="Padelhaus GmbH">Padelhaus GmbH</option>
         <option value="TIO TIO Rooftop">TIO TIO Rooftop</option>
       </select>
+      <div id="place-link" style="display:none;margin-top:6px;">
+        <a id="place-link-a" href="" target="_blank" style="font-size:12px;color:var(--blue);text-decoration:none;">🔗 Auf Playtomic nach freien Slots schauen</a>
+      </div>
     </div>
     <div class="field">
       <label>Datum</label>
@@ -298,6 +301,24 @@ function fmtDate(s) {
 }
 
 function locCls(p) { return p === 'Padelhaus GmbH' ? 'loc-p' : 'loc-t'; }
+
+function playtomicUrl(p) {
+  return p === 'Padelhaus GmbH'
+    ? 'https://playtomic.com/clubs/padel-fc'
+    : 'https://playtomic.com/clubs/tio-tio-rooftop';
+}
+
+function updPlace() {
+  const p = document.getElementById('inp-place').value;
+  const wrap = document.getElementById('place-link');
+  const a = document.getElementById('place-link-a');
+  if (p) {
+    a.href = playtomicUrl(p);
+    wrap.style.display = 'block';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
 
 async function addSlot() {
   const name  = document.getElementById('inp-name').value.trim();
@@ -404,6 +425,10 @@ function render(slots) {
         <div>
           <div class="card-title">${fmtDate(s.date)} · ${s.start}–${end} Uhr <span style="font-size:12px;font-weight:400;color:var(--text2);">(${dl})</span></div>
           <div class="card-sub"><span class="loc ${locCls(s.place)}">${s.place}</span><span>von ${s.by}</span></div>
+          <div style="margin-top:3px;">${full
+            ? `<a href="${playtomicUrl(s.place)}" target="_blank" style="font-size:13px;font-weight:600;color:var(--green-text);background:var(--green-light);padding:6px 12px;border-radius:6px;text-decoration:none;display:inline-block;">🎾 Jetzt auf Playtomic buchen</a>`
+            : `<a href="${playtomicUrl(s.place)}" target="_blank" style="font-size:12px;color:var(--blue);text-decoration:none;">🔗 Auf Playtomic nach freien Slots schauen</a>`
+          }</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
           ${badge}
