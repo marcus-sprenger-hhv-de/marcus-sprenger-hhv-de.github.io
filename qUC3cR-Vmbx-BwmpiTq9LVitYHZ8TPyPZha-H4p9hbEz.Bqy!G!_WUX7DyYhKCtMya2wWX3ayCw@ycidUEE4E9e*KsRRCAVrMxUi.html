@@ -239,12 +239,21 @@ for (let h = 7; h <= 22; h++) {
   if (h < 22) TIMES.push(String(h).padStart(2,'0') + ':30');
 }
 let dur = null;
+function pruneOldSlots(slots) {
+  const cutoff = Date.now() - 2 * 24 * 60 * 60 * 1000; // 2 days ago
+  return slots.filter(s => {
+    const slotDate = new Date(s.date + 'T23:59:59').getTime();
+    return slotDate >= cutoff;
+  });
+}
 
 (function bootForm() {
   const s = document.getElementById('inp-start');
-  s.innerHTML = '<option value="">– Uhr</option>' +
+  s.innerHTML = '<option value="">\u2013 Uhr</option>' +
     TIMES.map(t => `<option value="${t}">${t} Uhr</option>`).join('');
   s.value = '18:00';
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('inp-date').min = today;
 })();
 
 function setDur(btn) {
@@ -275,7 +284,13 @@ async function fetchSlots() {
   try {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
-    render(Array.isArray(data.record) ? data.record : []);
+    let slots = Array.isArray(data.record) ? data.record : [];
+    const pruned = pruneOldSlots(slots);
+    if (pruned.length < slots.length) {
+      await saveSlots(pruned);
+      slots = pruned;
+    }
+    render(slots);
     const lu = document.getElementById('last-update');
     if (lu) lu.textContent = 'Aktualisiert ' + new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
   } catch(e) {
@@ -297,7 +312,7 @@ function toast(msg) {
 function fmtDate(s) {
   if (!s) return '';
   return new Date(s + 'T12:00:00').toLocaleDateString('de-DE',
-    { weekday: 'short', day: '2-digit', month: '2-digit' });
+    { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function locCls(p) { return p === 'Padelhaus GmbH' ? 'loc-p' : 'loc-t'; }
@@ -397,7 +412,15 @@ async function del(id) {
 }
 
 function render(slots) {
+  window._cachedSlots = slots;
   const c = document.getElementById('slots');
+
+  // Save any names currently typed into join fields before re-rendering
+  const savedNames = {};
+  c.querySelectorAll('input[id^="j"]').forEach(inp => {
+    if (inp.value.trim()) savedNames[inp.id] = inp.value;
+  });
+
   if (!slots.length) {
     c.innerHTML = '<p class="empty">Noch keine Termine – schlage den ersten vor!</p>'; return;
   }
@@ -439,6 +462,12 @@ function render(slots) {
       ${banner}${joinRow}
     </div>`;
   }).join('');
+
+  // Restore any saved names
+  Object.entries(savedNames).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  });
 }
 
 fetchSlots();
