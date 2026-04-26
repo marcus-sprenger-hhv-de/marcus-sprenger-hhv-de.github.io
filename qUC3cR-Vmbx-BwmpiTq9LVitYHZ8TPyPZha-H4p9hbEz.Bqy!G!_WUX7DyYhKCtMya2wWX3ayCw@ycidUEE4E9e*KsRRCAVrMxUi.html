@@ -160,6 +160,14 @@
   }
   .btn-join:hover { background: var(--blue-dark); }
 
+  .spinner-dark {
+    display: inline-block; width: 10px; height: 10px;
+    border: 2px solid rgba(163,45,45,0.3);
+    border-top-color: var(--red-text);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+  }
   .btn-del {
     font-size: 11px; padding: 3px 8px;
     border: 0.5px solid var(--red-border); border-radius: var(--radius);
@@ -197,7 +205,7 @@
     <div class="header-icon">🎾</div>
     <div>
       <h1>Padel-Runde</h1>
-      <p>Termin vorschlagen – wenn 4 Leute zusagen, spielen wir!</p>
+      <p>Termin vorschlagen – wenn alle zusagen, spielen wir!</p>
     </div>
   </div>
 
@@ -220,8 +228,15 @@
       </div>
     </div>
     <div class="field">
+      <label>Spieleranzahl</label>
+      <div style="display:flex;gap:8px;">
+        <button class="dur" id="ps-4" onclick="setMaxPlayers(4,this)" style="flex:1;">👥 4 Spieler</button>
+        <button class="dur" id="ps-2" onclick="setMaxPlayers(2,this)" style="flex:1;">👤 2 Spieler</button>
+      </div>
+    </div>
+    <div class="field">
       <label>Datum</label>
-      <input type="text" id="inp-date" placeholder="Datum wählen …" readonly onclick="toggleCal()" style="cursor:pointer;" />
+      <input type="text" id="inp-date" placeholder="Datum wählen …" readonly onclick="toggleCal()" onkeydown="handleDateKey(event)" style="cursor:pointer;" />
       <div id="cal-popup" style="display:none;margin-top:8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius-lg);padding:10px;max-width:320px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <button id="cal-prev" onclick="moveMonth(-1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text);padding:0 4px;">&#8249;</button>
@@ -278,16 +293,63 @@ for (let h = 7; h <= 22; h++) {
   if (h < 22) TIMES.push(String(h).padStart(2,'0') + ':30');
 }
 let dur = null;
+let maxPlayers = 4;
+
+function setMaxPlayers(n, btn) {
+  maxPlayers = n;
+  document.querySelectorAll('#ps-2,#ps-4').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
 let selectedDate = null;
 
 let calYear = null, calMonth = null;
+
+function handleDateKey(e) {
+  const popup = document.getElementById('cal-popup');
+  const isOpen = popup && popup.style.display !== 'none';
+
+  if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (!isOpen) { toggleCal(); return; }
+  }
+  if (!isOpen) return;
+
+  if (e.key === 'Escape') { e.preventDefault(); popup.style.display = 'none'; return; }
+
+  if (!selectedDate) return;
+  const cur = new Date(selectedDate + 'T12:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  let next = new Date(cur);
+
+  if (e.key === 'ArrowRight') { e.preventDefault(); next.setDate(next.getDate() + 1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); next.setDate(next.getDate() - 1); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); next.setDate(next.getDate() + 7); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); next.setDate(next.getDate() - 7); }
+  else if (e.key === 'Enter') { e.preventDefault(); pickDate(selectedDate, cur); return; }
+  else return;
+
+  if (next < today) return; // don't go before today
+  selectedDate = next.toISOString().split('T')[0];
+  // Switch month if needed
+  if (next.getMonth() !== calMonth || next.getFullYear() !== calYear) {
+    calYear = next.getFullYear();
+    calMonth = next.getMonth();
+  }
+  renderCal();
+}
 
 function toggleCal() {
   const popup = document.getElementById('cal-popup');
   if (popup.style.display === 'none') {
     const now = new Date();
-    calYear = now.getFullYear();
-    calMonth = now.getMonth();
+    // If nothing selected yet, pre-select today
+    if (!selectedDate) {
+      selectedDate = now.toISOString().split('T')[0];
+    }
+    // Navigate calendar to selected date
+    const sel = new Date(selectedDate + 'T12:00:00');
+    calYear = sel.getFullYear();
+    calMonth = sel.getMonth();
     renderCal();
     popup.style.display = 'block';
   } else {
@@ -499,17 +561,20 @@ async function addSlot() {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
     const slots = (data.record && Array.isArray(data.record.slots) ? data.record.slots : (Array.isArray(data.record) ? data.record : []));
-    const now = Date.now(); slots.unshift({ id: now, place, date, start, dur, by: name, players: [name], done: false, createdAt: now, updatedAt: now });
+    const now = Date.now(); slots.unshift({ id: now, place, date, start, dur, maxPlayers, by: name, players: [name], done: false, createdAt: now, updatedAt: now });
     await saveSlots(slots);
     document.getElementById('inp-name').value  = '';
     document.getElementById('inp-place').value = '';
+    maxPlayers = 4;
+    document.querySelectorAll('#ps-2,#ps-4').forEach(b => b.classList.remove('on'));
+    document.getElementById('ps-4').classList.add('on');
     document.getElementById('inp-date').value  = '';
     selectedDate = null;
       document.getElementById('inp-start').value = '18:00';
     document.querySelectorAll('.dur').forEach(b => b.classList.remove('on'));
     dur = null; upd();
     toast('Termin vorgeschlagen!');
-    render(slots);
+    await fetchSlots();
   } catch(e) { toast('Fehler beim Speichern'); }
   btn.disabled = false; btn.textContent = 'Termin vorschlagen';
 }
@@ -517,30 +582,35 @@ async function addSlot() {
 async function join(id) {
   const inp  = document.getElementById('j' + id);
   const btn  = document.getElementById('jbtn' + id);
+  const card = inp ? inp.closest('.card') : null;
   const name = inp.value.trim();
   if (!name) { toast('Bitte Namen eingeben'); return; }
   inp.disabled = true;
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>'; }
+  if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }
   try {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
     const slots = (data.record && Array.isArray(data.record.slots) ? data.record.slots : (Array.isArray(data.record) ? data.record : []));
     const s = slots.find(x => x.id === id);
     if (!s) return;
-    if (s.players.includes(name)) { toast('Schon dabei!'); inp.disabled = false; if (btn) { btn.disabled = false; btn.innerHTML = 'Zusagen'; } return; }
-    if (s.players.length >= 4)    { toast('Runde voll!');  inp.disabled = false; if (btn) { btn.disabled = false; btn.innerHTML = 'Zusagen'; } return; }
+    const mp = s.maxPlayers || 4;
+    if (s.players.includes(name)) { toast('Schon dabei!'); inp.disabled = false; if (btn) { btn.disabled = false; btn.innerHTML = 'Zusagen'; } if (card) { card.style.opacity = ''; card.style.pointerEvents = ''; } return; }
+    if (s.players.length >= mp)   { toast('Runde voll!');  inp.disabled = false; if (btn) { btn.disabled = false; btn.innerHTML = 'Zusagen'; } if (card) { card.style.opacity = ''; card.style.pointerEvents = ''; } return; }
     s.players.push(name);
-    if (s.players.length === 4) s.done = true;
+    if (s.players.length === mp) s.done = true;
     s.updatedAt = Date.now();
     await saveSlots(slots);
     inp.value = '';
     toast(s.done ? '🎉 Runde komplett!' : 'Zugesagt!');
-    render(slots);
-  } catch(e) { toast('Fehler'); inp.disabled = false; if (btn) { btn.disabled = false; btn.innerHTML = 'Zusagen'; } }
+    await fetchSlots();
+  } catch(e) { toast('Fehler'); inp.disabled = false; if (btn) { btn.disabled = false; btn.innerHTML = 'Zusagen'; } if (card) { card.style.opacity = ''; card.style.pointerEvents = ''; } }
 }
 
 async function leave(id, name) {
   if (!confirm(`${name} wirklich aus dem Termin entfernen?`)) return;
+  const card = document.querySelector(`[onclick*="leave(${id},"]`)?.closest('.card');
+  if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }
   try {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
@@ -552,20 +622,28 @@ async function leave(id, name) {
     s.updatedAt = Date.now();
     await saveSlots(slots);
     toast('Abgesagt');
-    render(slots);
-  } catch(e) { toast('Fehler'); }
+    await fetchSlots();
+  } catch(e) { toast('Fehler'); if (card) { card.style.opacity = ''; card.style.pointerEvents = ''; } }
 }
 
 async function del(id) {
   if (!confirm('Termin wirklich löschen?')) return;
+  const btn = document.getElementById('dbtn' + id);
+  const card = btn ? btn.closest('.card') : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-dark"></span>'; }
+  if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }
   try {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
     const slots = ((data.record && Array.isArray(data.record.slots) ? data.record.slots : (Array.isArray(data.record) ? data.record : []))).filter(x => x.id !== id);
     await saveSlots(slots);
     toast('Termin gelöscht');
-    render(slots);
-  } catch(e) { toast('Fehler'); }
+    await fetchSlots();
+  } catch(e) {
+    toast('Fehler');
+    if (btn) { btn.disabled = false; btn.innerHTML = 'löschen'; }
+    if (card) { card.style.opacity = ''; card.style.pointerEvents = ''; }
+  }
 }
 
 function render(slots) {
@@ -588,15 +666,16 @@ function render(slots) {
   c.innerHTML = sorted.map(s => {
     const end = addM(s.start, s.dur);
     const dl  = s.dur === 60 ? '1h' : s.dur === 90 ? '1,5h' : '2h';
-    const n = s.players.length, full = n >= 4, spots = 4 - n;
+    const mp = s.maxPlayers || 4;
+    const n = s.players.length, full = n >= mp, spots = mp - n;
     const badge = full
       ? '<span class="badge badge-full">✓ Komplett</span>'
       : `<span class="badge badge-open">${spots} Platz${spots===1?'':'\'e'} frei</span>`;
     const pills = s.players.map(p =>
       `<span class="pill">${p}<button onclick="leave(${s.id},'${p.replace(/'/g,"\\'")}')">×</button></span>`
     ).join('');
-    const dots   = Array(Math.max(0, 4-n)).fill('<span class="dot">●</span>').join('');
-    const banner = full ? `<div class="full-banner">🎉 Alle 4 dabei: ${s.players.join(', ')}</div>` : '';
+    const dots   = Array(Math.max(0, mp-n)).fill('<span class="dot">●</span>').join('');
+    const banner = full ? `<div class="full-banner">🎉 Alle ${mp} dabei: ${s.players.join(', ')}</div>` : '';
     const joinRow = !full
       ? `<div class="join-row"><input id="j${s.id}" type="text" placeholder="Dein Name" onkeydown="if(event.key==='Enter')join(${s.id})" /><button id="jbtn${s.id}" class="btn-join" onclick="join(${s.id})">Zusagen</button></div>`
       : '';
@@ -612,7 +691,7 @@ function render(slots) {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
           ${badge}
-          <button class="btn-del" onclick="del(${s.id})">löschen</button>
+          <button id="dbtn${s.id}" class="btn-del" onclick="del(${s.id})">löschen</button>
         </div>
       </div>
       <div class="pills">${pills}${dots}</div>
