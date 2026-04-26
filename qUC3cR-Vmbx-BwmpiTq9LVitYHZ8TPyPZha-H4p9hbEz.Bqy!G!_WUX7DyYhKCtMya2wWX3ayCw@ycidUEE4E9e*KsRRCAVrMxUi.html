@@ -212,6 +212,7 @@
       <div class="dur-row">
         <button class="dur" data-d="60" onclick="setDur(this)">1h</button>
         <button class="dur" data-d="90" onclick="setDur(this)">1,5h</button>
+        <button class="dur" data-d="120" onclick="setDur(this)">2h</button>
         <span class="end-hint" id="end-hint" style="display:none;">→ <b id="end-val"></b></span>
       </div>
     </div>
@@ -437,7 +438,7 @@ function render(slots) {
   });
   c.innerHTML = sorted.map(s => {
     const end = addM(s.start, s.dur);
-    const dl  = s.dur === 60 ? '1h' : '1,5h';
+    const dl  = s.dur === 60 ? '1h' : s.dur === 90 ? '1,5h' : '2h';
     const n = s.players.length, full = n >= 4, spots = 4 - n;
     const badge = full
       ? '<span class="badge badge-full">✓ Komplett</span>'
