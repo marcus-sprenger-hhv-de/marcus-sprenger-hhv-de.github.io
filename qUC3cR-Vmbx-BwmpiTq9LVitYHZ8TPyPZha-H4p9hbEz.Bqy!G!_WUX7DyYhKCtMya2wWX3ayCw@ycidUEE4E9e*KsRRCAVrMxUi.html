@@ -540,6 +540,7 @@ async function join(id) {
 }
 
 async function leave(id, name) {
+  if (!confirm(`${name} wirklich aus dem Termin entfernen?`)) return;
   try {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
