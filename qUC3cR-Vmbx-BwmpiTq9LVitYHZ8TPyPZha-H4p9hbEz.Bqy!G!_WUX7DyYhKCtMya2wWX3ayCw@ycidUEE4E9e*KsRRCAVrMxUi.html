@@ -160,7 +160,18 @@
 
   .empty { font-size: 14px; color: var(--text3); padding: 1rem 0; }
   .loading { text-align: center; padding: 2rem; color: var(--text2); font-size: 14px; }
-
+    .cal-day.soon { background: var(--blue-light); }
+  .cal-day.soon:hover { background: #c8dff5; }
+  .cal-day {
+    font-size: 13px; padding: 5px 2px; border-radius: 6px;
+    cursor: pointer; color: var(--text); border: none; background: none; width: 100%;
+  }
+  .cal-day:hover { background: var(--bg2); }
+  .cal-day.today { font-weight: 700; color: var(--blue); }
+  .cal-day.selected { background: var(--blue); color: #fff !important; border-radius: 6px; }
+  .cal-day.past { color: var(--text3); cursor: default; pointer-events: none; }
+  .cal-day.future-only { color: var(--text3); cursor: default; pointer-events: none; }
+  .cal-day.empty { pointer-events: none; }
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
     background: #1a1a18; color: #fff; padding: 9px 20px;
@@ -201,7 +212,24 @@
     </div>
     <div class="field">
       <label>Datum</label>
-      <input type="date" id="inp-date" />
+      <input type="text" id="inp-date" placeholder="Datum wählen …" readonly onclick="toggleCal()" style="cursor:pointer;" />
+      <div id="cal-popup" style="display:none;margin-top:8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius-lg);padding:10px;max-width:320px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <button id="cal-prev" onclick="moveMonth(-1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text);padding:0 4px;">&#8249;</button>
+          <span id="cal-month" style="font-size:13px;font-weight:600;color:var(--text);"></span>
+          <button onclick="moveMonth(1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text);padding:0 4px;">&#8250;</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:6px;">
+          <span style="font-size:11px;color:var(--text2);">Mo</span>
+          <span style="font-size:11px;color:var(--text2);">Di</span>
+          <span style="font-size:11px;color:var(--text2);">Mi</span>
+          <span style="font-size:11px;color:var(--text2);">Do</span>
+          <span style="font-size:11px;color:var(--text2);">Fr</span>
+          <span style="font-size:11px;color:var(--text2);">Sa</span>
+          <span style="font-size:11px;color:var(--text2);">So</span>
+        </div>
+        <div id="cal-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;"></div>
+      </div>
     </div>
     <div class="field">
       <label>Startzeit</label>
@@ -241,6 +269,105 @@ for (let h = 7; h <= 22; h++) {
   if (h < 22) TIMES.push(String(h).padStart(2,'0') + ':30');
 }
 let dur = null;
+let selectedDate = null;
+
+let calYear = null, calMonth = null;
+
+function toggleCal() {
+  const popup = document.getElementById('cal-popup');
+  if (popup.style.display === 'none') {
+    const now = new Date();
+    calYear = now.getFullYear();
+    calMonth = now.getMonth();
+    renderCal();
+    popup.style.display = 'block';
+  } else {
+    popup.style.display = 'none';
+  }
+}
+
+function moveMonth(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  renderCal();
+}
+
+function renderCal() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  document.getElementById('cal-month').textContent = monthNames[calMonth] + ' ' + calYear;
+
+  // Prev button: disable if we're already in current month
+  const isCurrentMonth = calYear === today.getFullYear() && calMonth === today.getMonth();
+  document.getElementById('cal-prev').disabled = isCurrentMonth;
+  document.getElementById('cal-prev').style.opacity = isCurrentMonth ? '0.3' : '1';
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  let startOffset = firstDay.getDay() - 1;
+  if (startOffset < 0) startOffset = 6;
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  const container = document.getElementById('cal-days');
+  container.innerHTML = '';
+
+  for (let i = 0; i < startOffset; i++) {
+    const el = document.createElement('span');
+    el.className = 'cal-day empty';
+    container.appendChild(el);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(calYear, calMonth, d);
+    const dateStr = date.toISOString().split('T')[0];
+    const btn = document.createElement('button');
+    btn.className = 'cal-day';
+    btn.textContent = d;
+    if (date < today) {
+      btn.classList.add('past');
+    } else {
+      if (date.getTime() === today.getTime()) btn.classList.add('today');
+      if (selectedDate === dateStr) btn.classList.add('selected');
+      const in14 = (date - today) / 86400000 < 14;
+      if (in14 && selectedDate !== dateStr) btn.classList.add('soon');
+      btn.onclick = () => pickDate(dateStr, date);
+    }
+    container.appendChild(btn);
+  }
+
+  // Fill remaining cells with first days of next month
+  const totalCells = startOffset + daysInMonth;
+  const remainder = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for (let d = 1; d <= remainder; d++) {
+    const date = new Date(calYear, calMonth + 1, d);
+    const dateStr = date.toISOString().split('T')[0];
+    const btn = document.createElement('button');
+    btn.className = 'cal-day';
+    btn.textContent = d;
+    btn.style.opacity = '0.4';
+    if (selectedDate === dateStr) btn.classList.add('selected');
+    btn.onclick = () => pickDate(dateStr, date);
+    container.appendChild(btn);
+  }
+}
+
+function pickDate(dateStr, dateObj) {
+  selectedDate = dateStr;
+  const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const d = dateObj;
+  const label = days[d.getDay()] + ', ' + String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
+  document.getElementById('inp-date').value = label;
+  document.getElementById('cal-popup').style.display = 'none';
+}
+
+// Close cal when clicking outside
+document.addEventListener('click', e => {
+  const popup = document.getElementById('cal-popup');
+  const inp = document.getElementById('inp-date');
+  if (popup && !popup.contains(e.target) && e.target !== inp) {
+    popup.style.display = 'none';
+  }
+});
 function pruneOldSlots(slots) {
   const cutoff = Date.now() - 2 * 24 * 60 * 60 * 1000; // 2 days ago
   return slots.filter(s => {
@@ -254,9 +381,8 @@ function pruneOldSlots(slots) {
   s.innerHTML = '<option value="">\u2013 Uhr</option>' +
     TIMES.map(t => `<option value="${t}">${t} Uhr</option>`).join('');
   s.value = '18:00';
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('inp-date').min = today;
 })();
+
 
 function setDur(btn) {
   document.querySelectorAll('.dur').forEach(b => b.classList.remove('on'));
@@ -286,7 +412,7 @@ async function fetchSlots() {
   try {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
-    let slots = Array.isArray(data.record) ? data.record : [];
+    let slots = (data.record && Array.isArray(data.record.slots) ? data.record.slots : (Array.isArray(data.record) ? data.record : []));
     const pruned = pruneOldSlots(slots);
     if (pruned.length < slots.length) {
       await saveSlots(pruned);
@@ -302,7 +428,7 @@ async function fetchSlots() {
 }
 
 async function saveSlots(slots) {
-  await fetch(BASE, { method: 'PUT', headers: WH, body: JSON.stringify(slots) });
+  await fetch(BASE, { method: 'PUT', headers: WH, body: JSON.stringify({ slots }) });
 }
 
 function toast(msg) {
@@ -346,7 +472,7 @@ function updPlace() {
 async function addSlot() {
   const name  = document.getElementById('inp-name').value.trim();
   const place = document.getElementById('inp-place').value;
-  const date  = document.getElementById('inp-date').value;
+  const date  = selectedDate;
   const start = document.getElementById('inp-start').value;
   if (!name || !place || !date || !start || !dur) {
     toast('Bitte alle Felder ausfüllen'); return;
@@ -356,13 +482,14 @@ async function addSlot() {
   try {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
-    const slots = Array.isArray(data.record) ? data.record : [];
+    const slots = (data.record && Array.isArray(data.record.slots) ? data.record.slots : (Array.isArray(data.record) ? data.record : []));
     slots.unshift({ id: Date.now(), place, date, start, dur, by: name, players: [name], done: false });
     await saveSlots(slots);
     document.getElementById('inp-name').value  = '';
     document.getElementById('inp-place').value = '';
     document.getElementById('inp-date').value  = '';
-    document.getElementById('inp-start').value = '18:00';
+    selectedDate = null;
+      document.getElementById('inp-start').value = '18:00';
     document.querySelectorAll('.dur').forEach(b => b.classList.remove('on'));
     dur = null; upd();
     toast('Termin vorgeschlagen!');
@@ -379,7 +506,7 @@ async function join(id) {
   try {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
-    const slots = Array.isArray(data.record) ? data.record : [];
+    const slots = (data.record && Array.isArray(data.record.slots) ? data.record.slots : (Array.isArray(data.record) ? data.record : []));
     const s = slots.find(x => x.id === id);
     if (!s) return;
     if (s.players.includes(name)) { toast('Schon dabei!'); inp.disabled = false; return; }
@@ -387,6 +514,7 @@ async function join(id) {
     s.players.push(name);
     if (s.players.length === 4) s.done = true;
     await saveSlots(slots);
+    inp.value = '';
     toast(s.done ? '🎉 Runde komplett!' : 'Zugesagt!');
     render(slots);
   } catch(e) { toast('Fehler'); inp.disabled = false; }
@@ -396,7 +524,7 @@ async function leave(id, name) {
   try {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
-    const slots = Array.isArray(data.record) ? data.record : [];
+    const slots = (data.record && Array.isArray(data.record.slots) ? data.record.slots : (Array.isArray(data.record) ? data.record : []));
     const s = slots.find(x => x.id === id);
     if (!s) return;
     s.players = s.players.filter(p => p !== name);
@@ -412,7 +540,7 @@ async function del(id) {
   try {
     const r = await fetch(BASE + '/latest', { headers: RH });
     const data = await r.json();
-    const slots = (Array.isArray(data.record) ? data.record : []).filter(x => x.id !== id);
+    const slots = ((data.record && Array.isArray(data.record.slots) ? data.record.slots : (Array.isArray(data.record) ? data.record : []))).filter(x => x.id !== id);
     await saveSlots(slots);
     toast('Termin gelöscht');
     render(slots);
@@ -449,7 +577,7 @@ function render(slots) {
     const dots   = Array(Math.max(0, 4-n)).fill('<span class="dot">●</span>').join('');
     const banner = full ? `<div class="full-banner">🎉 Alle 4 dabei: ${s.players.join(', ')}</div>` : '';
     const joinRow = !full
-      ? `<div class="join-row"><input id="j${s.id}" type="text" placeholder="Dein Name" /><button class="btn-join" onclick="join(${s.id})">Zusagen</button></div>`
+      ? `<div class="join-row"><input id="j${s.id}" type="text" placeholder="Dein Name" onkeydown="if(event.key==='Enter')join(${s.id})" /><button class="btn-join" onclick="join(${s.id})">Zusagen</button></div>`
       : '';
     return `<div class="card${full?' done':''}">
       <div class="card-top">
