@@ -94,6 +94,13 @@
   input:focus, select:focus { box-shadow: 0 0 0 2px rgba(24,95,165,0.3); }
 
   .dur-row { display: flex; gap: 8px; align-items: center; }
+  .dur-players {
+    font-size: 13px; padding: 7px 20px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius);
+    cursor: pointer; background: var(--bg); color: var(--text); white-space: nowrap; flex: 1;
+  }
+  .dur-players:hover { background: var(--bg2); }
+  .dur-players.on { background: var(--blue); color: #fff; border-color: var(--blue); }
   .dur {
     font-size: 13px; padding: 7px 20px;
     border: 0.5px solid var(--border2); border-radius: var(--radius);
@@ -217,11 +224,11 @@
     </div>
     <div class="field">
       <label>Ort</label>
-      <select id="inp-place" onchange="updPlace()">
-        <option value="">Ort wählen …</option>
-        <option value="Padelhaus GmbH">Padelhaus GmbH</option>
-        <option value="TIO TIO Rooftop">TIO TIO Rooftop</option>
-      </select>
+      <input type="hidden" id="inp-place" value="" />
+      <div style="display:flex;gap:8px;">
+        <button class="dur-players" id="place-padelhaus" onclick="setPlace('Padelhaus GmbH',this)" style="flex:1;">Padelhaus GmbH</button>
+        <button class="dur-players" id="place-tiotio" onclick="setPlace('TIO TIO Rooftop',this)" style="flex:1;">TIO TIO Rooftop</button>
+      </div>
       <div id="place-link" style="display:none;margin-top:6px;">
         <a id="place-link-a" href="" target="_blank" style="font-size:12px;color:var(--blue);text-decoration:none;">🔗 Auf Playtomic nach freien Slots schauen</a>
         <a id="place-homepage-a" href="" target="_blank" style="font-size:12px;color:var(--text2);text-decoration:none;margin-left:10px;">🏠 Homepage</a>
@@ -230,8 +237,8 @@
     <div class="field">
       <label>Spieleranzahl</label>
       <div style="display:flex;gap:8px;">
-        <button class="dur" id="ps-4" onclick="setMaxPlayers(4,this)" style="flex:1;">👥 4 Spieler</button>
-        <button class="dur" id="ps-2" onclick="setMaxPlayers(2,this)" style="flex:1;">👤 2 Spieler</button>
+        <button class="dur-players" id="ps-4" onclick="setMaxPlayers(4,this)" style="flex:1;">👥 4 Spieler</button>
+        <button class="dur-players" id="ps-2" onclick="setMaxPlayers(2,this)" style="flex:1;">👤 2 Spieler</button>
       </div>
     </div>
     <div class="field">
@@ -271,9 +278,12 @@
     <button class="btn-submit" id="btn-add" onclick="addSlot()">Termin vorschlagen</button>
   </div>
 
-  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
     <p class="section-title" style="margin-bottom:0;">Offene Termine</p>
-    <span id="last-update" style="font-size:11px;color:var(--text3);"></span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="last-update" style="font-size:11px;color:var(--text3);"></span>
+      <button id="btn-refresh" onclick="refreshList()" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);cursor:pointer;">↻ Aktualisieren</button>
+    </div>
   </div>
   <div id="slots"><div class="loading">Lade Termine …</div></div>
 
@@ -297,10 +307,16 @@ let maxPlayers = 4;
 
 function setMaxPlayers(n, btn) {
   maxPlayers = n;
-  document.querySelectorAll('#ps-2,#ps-4').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.dur-players').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
 }
 let selectedDate = null;
+
+function toLocalDateStr(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
 
 let calYear = null, calMonth = null;
 
@@ -329,7 +345,7 @@ function handleDateKey(e) {
   else return;
 
   if (next < today) return; // don't go before today
-  selectedDate = next.toISOString().split('T')[0];
+  selectedDate = toLocalDateStr(next);
   // Switch month if needed
   if (next.getMonth() !== calMonth || next.getFullYear() !== calYear) {
     calYear = next.getFullYear();
@@ -344,7 +360,7 @@ function toggleCal() {
     const now = new Date();
     // If nothing selected yet, pre-select today
     if (!selectedDate) {
-      selectedDate = now.toISOString().split('T')[0];
+      selectedDate = toLocalDateStr(now);
     }
     // Navigate calendar to selected date
     const sel = new Date(selectedDate + 'T12:00:00');
@@ -390,7 +406,7 @@ function renderCal() {
 
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(calYear, calMonth, d);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toLocalDateStr(date);
     const btn = document.createElement('button');
     btn.className = 'cal-day';
     btn.textContent = d;
@@ -411,7 +427,7 @@ function renderCal() {
   const remainder = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
   for (let d = 1; d <= remainder; d++) {
     const date = new Date(calYear, calMonth + 1, d);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toLocalDateStr(date);
     const btn = document.createElement('button');
     btn.className = 'cal-day';
     btn.textContent = d;
@@ -452,6 +468,21 @@ function pruneOldSlots(slots) {
   s.innerHTML = '<option value="">\u2013 Uhr</option>' +
     TIMES.map(t => `<option value="${t}">${t} Uhr</option>`).join('');
   s.value = '16:00';
+
+  // Pre-select today
+  const today = new Date();
+  selectedDate = toLocalDateStr(today);
+  const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const label = days[today.getDay()] + ', ' + String(today.getDate()).padStart(2,'0') + '.' + String(today.getMonth()+1).padStart(2,'0') + '.' + today.getFullYear();
+  document.getElementById('inp-date').value = label;
+
+  // Pre-select 4 players
+  document.getElementById('ps-4').classList.add('on');
+
+  // Pre-select 1h duration
+  dur = 60;
+  document.querySelector('.dur[data-d="60"]').classList.add('on');
+  upd();
 })();
 
 
@@ -533,18 +564,15 @@ function playtomicUrl(p) {
     : 'https://playtomic.com/clubs/tio-tio-rooftop';
 }
 
-function updPlace() {
-  const p = document.getElementById('inp-place').value;
-  const wrap = document.getElementById('place-link');
+function setPlace(p, btn) {
+  document.getElementById('inp-place').value = p;
+  document.querySelectorAll('#place-padelhaus,#place-tiotio').forEach(b => b.classList.remove('on'));
+  if (btn) btn.classList.add('on');
   const a = document.getElementById('place-link-a');
   const h = document.getElementById('place-homepage-a');
-  if (p) {
-    a.href = playtomicUrl(p);
-    h.href = homepageUrl(p);
-    wrap.style.display = 'block';
-  } else {
-    wrap.style.display = 'none';
-  }
+  a.href = playtomicUrl(p);
+  h.href = homepageUrl(p);
+  document.getElementById('place-link').style.display = 'block';
 }
 
 async function addSlot() {
@@ -565,14 +593,21 @@ async function addSlot() {
     await saveSlots(slots);
     document.getElementById('inp-name').value  = '';
     document.getElementById('inp-place').value = '';
+    document.querySelectorAll('#place-padelhaus,#place-tiotio').forEach(b => b.classList.remove('on'));
+    document.getElementById('place-link').style.display = 'none';
     maxPlayers = 4;
     document.querySelectorAll('#ps-2,#ps-4').forEach(b => b.classList.remove('on'));
     document.getElementById('ps-4').classList.add('on');
-    document.getElementById('inp-date').value  = '';
-    selectedDate = null;
-      document.getElementById('inp-start').value = '18:00';
+    const resetDay = new Date();
+    selectedDate = toLocalDateStr(resetDay);
+    const resetDays = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+    const resetLabel = resetDays[resetDay.getDay()] + ', ' + String(resetDay.getDate()).padStart(2,'0') + '.' + String(resetDay.getMonth()+1).padStart(2,'0') + '.' + resetDay.getFullYear();
+    document.getElementById('inp-date').value = resetLabel;
+    document.getElementById('inp-start').value = '16:00';
     document.querySelectorAll('.dur').forEach(b => b.classList.remove('on'));
-    dur = null; upd();
+    dur = 60;
+    document.querySelector('.dur[data-d="60"]').classList.add('on');
+    upd();
     toast('Termin vorgeschlagen!');
     await fetchSlots();
   } catch(e) { toast('Fehler beim Speichern'); }
@@ -711,7 +746,13 @@ function render(slots) {
 }
 
 fetchSlots();
-setInterval(fetchSlots, 15000);
+
+async function refreshList() {
+  const btn = document.getElementById('btn-refresh');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ …'; }
+  await fetchSlots();
+  if (btn) { btn.disabled = false; btn.textContent = '↻ Aktualisieren'; }
+}
 </script>
 </body>
 </html>
